@@ -6,3 +6,6 @@ verifier/sources/*.txt
 github-recovery-codes.txt
 __pycache__/
 .DS_Store
+
+.wrangler/
+api/.wrangler/

@@ -1,0 +1,11 @@
+name = "humanor-api"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "humanor"
+database_id = "5c8e7c28-876b-47a0-8c6f-fce100eb3a7b"
+
+# secret, never in this file:
+#   npx wrangler secret put ADMIN_KEY
