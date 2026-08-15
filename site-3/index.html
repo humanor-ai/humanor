@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>humanor — one line a day</title>
+<meta name="description" content="One line a day. A human wrote it, or a machine did. Vote. Every answer is sealed before you play.">
+<meta name="theme-color" content="#050505">
+<meta property="og:title" content="humanor">
+<meta property="og:description" content="One line a day. Human or AI? Every answer is sealed before you vote.">
+<meta property="og:type" content="website">
+<link rel="icon" href="/favicon.png">
+<!-- Before launch: self-host these two faces and delete this line. See style.css. -->
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<main>
+  <p class="eyebrow rise rise-1" id="eyebrow">N°—</p>
+
+  <p class="line rise rise-2" id="line">&nbsp;</p>
+
+  <div class="vote rise rise-3" id="vote" role="group" aria-label="Who wrote this line?">
+    <button class="choice choice--human" data-vote="HUMAN" aria-pressed="false">HUMAN</button>
+    <span class="divider" aria-hidden="true"></span>
+    <button class="choice choice--ai" data-vote="AI" aria-pressed="false">AI</button>
+  </div>
+
+  <p class="receipt" id="receipt" hidden></p>
+
+  <a class="seal rise rise-4" id="seal" href="/proof.html" title="How the seal works"></a>
+</main>
+
+<footer>
+  <a href="/proof.html">sealed</a>
+  <a href="/archive.html">archive</a>
+  <a href="https://github.com/humanor-ai/humanor" rel="noopener">open</a>
+</footer>
+
+<script>
+/* ------------------------------------------------------------------ store */
+/* Streaks live on the device. No account, no cookie, no tracking.
+   Wrapped because private-browsing modes throw on access. */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+
+/* ------------------------------------------------------------------- data */
+/* The reveal is one moment on Earth, not one moment per timezone.
+   Anchored to Europe/Paris so a visitor in Manila and one in Lisbon
+   count down to the same instant. DST is handled by the browser. */
+const REVEAL_ZONE = 'Europe/Paris', REVEAL_HOUR = 17, REVEAL_MIN = 55;
+
+async function boot() {
+  let rounds = [];
+  try {
+    rounds = await (await fetch('/rounds.json', { cache: 'no-store' })).json();
+  } catch {
+    document.getElementById('line').textContent = 'The line is on its way.';
+    return;
+  }
+
+  const live = rounds.filter(r => r.published).sort((a, b) => b.no - a.no);
+  const round = live[0];
+  if (!round) { document.getElementById('line').textContent = 'The first line arrives soon.'; return; }
+
+  document.getElementById('eyebrow').textContent = 'N°' + String(round.no).padStart(3, '0');
+  document.getElementById('line').textContent = round.text;
+
+  const seal = document.getElementById('seal');
+  const short = h => h.slice(0, 12) + '…' + h.slice(-6);
+  seal.textContent = round.revealed
+    ? 'salt ' + short(round.salt) + ' · verified'
+    : 'sealed ' + short(round.sha256);
+
+  wireVote(round);
+}
+
+/* ------------------------------------------------------------------- vote */
+function wireVote(round) {
+  const box = document.getElementById('vote');
+  const receipt = document.getElementById('receipt');
+  const votes = store.get('votes', {});
+  const already = votes[round.no];
+
+  const settle = (choice) => {
+    box.classList.add('done');
+    [...box.querySelectorAll('.choice')].forEach(b => {
+      b.setAttribute('aria-pressed', String(b.dataset.vote === choice));
+      b.disabled = true;
+    });
+
+    if (round.revealed) {
+      const right = choice === round.label;
+      receipt.innerHTML = (right ? 'Right. ' : 'Wrong. ') +
+        'It was <b>' + round.label + '</b>' +
+        (round.source ? ' — ' + round.source : '') +
+        (round.foolRate != null ? '<br>' + round.foolRate + '% of players were fooled.' : '');
+    } else {
+      receipt.innerHTML = 'Recorded. The answer was sealed before you voted.<br>Truth in <b id="cd">—</b>';
+      countdown();
+    }
+    receipt.hidden = false;
+  };
+
+  if (already) { settle(already); return; }
+
+  box.addEventListener('click', e => {
+    const b = e.target.closest('.choice');
+    if (!b) return;
+    votes[round.no] = b.dataset.vote;
+    store.set('votes', votes);
+    settle(b.dataset.vote);
+  });
+
+  /* h / a — the two answers, one keystroke each */
+  addEventListener('keydown', e => {
+    if (box.classList.contains('done')) return;
+    const k = e.key.toLowerCase();
+    if (k === 'h' || k === 'a') box.querySelector(`[data-vote="${k === 'h' ? 'HUMAN' : 'AI'}"]`).click();
+  });
+}
+
+/* --------------------------------------------------------------- countdown */
+/* The ritual, made visible: the page always knows how far the truth is. */
+function countdown() {
+  const el = () => document.getElementById('cd');
+  /* Current offset of the reveal zone, whatever the visitor's own clock says. */
+  const zoneOffsetMs = (d) => {
+    const asUTC = new Date(d.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const asZone = new Date(d.toLocaleString('en-US', { timeZone: REVEAL_ZONE }));
+    return asZone - asUTC;
+  };
+
+  const tick = () => {
+    const node = el();
+    if (!node) return;
+    const now = new Date();
+    const off = zoneOffsetMs(now);
+    // Build the reveal instant expressed in the reveal zone, then convert back.
+    const zoneNow = new Date(now.getTime() + off);
+    const t = new Date(Date.UTC(
+      zoneNow.getUTCFullYear(), zoneNow.getUTCMonth(), zoneNow.getUTCDate(),
+      REVEAL_HOUR, REVEAL_MIN, 0
+    ) - off);
+    if (t <= now) t.setTime(t.getTime() + 86400000);
+    const s = Math.floor((t - now) / 1000);
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+    node.textContent = h > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m ${String(s % 60).padStart(2, '0')}s`;
+  };
+  tick();
+  setInterval(tick, 1000);
+}
+
+boot();
+</script>
+</body>
+</html>

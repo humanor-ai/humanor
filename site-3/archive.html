@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>humanor — archive</title>
+<meta name="description" content="Every line, and who wrote it.">
+<meta name="theme-color" content="#050505">
+<link rel="icon" href="/favicon.png">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="page">
+  <h1>Every line, and who wrote it.</h1>
+  <p>Play any of them. The answer only shows after you choose.</p>
+  <section id="list"></section>
+</main>
+<footer>
+  <a href="/">today</a>
+  <a href="/proof.html">sealed</a>
+  <a href="https://github.com/humanor-ai/humanor" rel="noopener">open</a>
+</footer>
+<script>
+const store = {
+  get(k,d){ try{ const v=localStorage.getItem(k); return v===null?d:JSON.parse(v);}catch{return d;} },
+  set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch{} }
+};
+
+(async () => {
+  let rounds = [];
+  try { rounds = await (await fetch('/rounds.json',{cache:'no-store'})).json(); } catch {}
+  const done = rounds.filter(r => r.revealed).sort((a,b) => b.no - a.no);
+  const list = document.getElementById('list');
+  if (!done.length) { list.innerHTML = '<p>Nothing revealed yet. The first truth lands at 17:55.</p>'; return; }
+
+  const votes = store.get('votes', {});
+  list.innerHTML = done.map(r => `
+    <div class="row" data-no="${r.no}">
+      <span class="no">N°${String(r.no).padStart(3,'0')}</span>
+      <span class="txt">${r.text}</span>
+      <span class="verdict" data-label="${r.label}">${votes[r.no] ? r.label : 'reveal'}</span>
+    </div>`).join('');
+
+  list.addEventListener('click', e => {
+    const row = e.target.closest('.row'); if (!row) return;
+    const r = done.find(x => x.no == row.dataset.no);
+    const v = row.querySelector('.verdict');
+    if (v.textContent === 'reveal') {
+      v.textContent = r.label;
+      votes[r.no] = 'seen'; store.set('votes', votes);
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,311 @@
+/* humanor — the entire visual language.
+   Two voices, and the page is the argument between them:
+   the SERIF is the human hand, the MONO is the machine.
+   Nothing else is allowed in. No accent colour. Ever.
+
+   FONTS — before launch, self-host to keep the site third-party-free
+   (the manifesto promises no tracking; Google Fonts sends visitor IPs).
+   Drop InstrumentSerif-Regular.woff2 + IBMPlexMono-Regular.woff2 in /fonts,
+   uncomment the @font-face rules below, and delete the <link> in the HTML. */
+
+/*
+@font-face { font-family:"Instrument Serif"; src:url(/fonts/InstrumentSerif-Regular.woff2) format("woff2"); font-display:swap; }
+@font-face { font-family:"IBM Plex Mono";   src:url(/fonts/IBMPlexMono-Regular.woff2)   format("woff2"); font-display:swap; }
+*/
+
+:root {
+  --bg:        #050505;
+  --ink:       #F4F1EA;
+  --ink-dim:   rgba(244, 241, 234, 0.46);
+  --ink-faint: rgba(244, 241, 234, 0.20);
+  --ink-ghost: rgba(244, 241, 234, 0.09);
+
+  --serif: "Instrument Serif", Georgia, "Iowan Old Style", Times, serif;
+  --mono:  "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --breath: clamp(1.6rem, 7vh, 5rem);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The light behind the words — the only "effect" on the whole site.
+   Same radial breath as the profile mark, so the two feel cut from one block. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse 70% 55% at 50% 42%,
+              rgba(244, 241, 234, 0.055), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Film grain: the page should feel printed, not exported. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: -50%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.32'/%3E%3C/svg%3E");
+  opacity: 0.035;
+  pointer-events: none;
+  z-index: 1;
+}
+
+main {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--breath) 1.5rem;
+  text-align: center;
+}
+
+/* Optical centring: the eye reads centre as slightly high. */
+main > * + * { margin-top: var(--breath); }
+#receipt { margin-top: 1.4rem; }
+#seal    { margin-top: 2.1rem; }
+main { padding-bottom: calc(var(--breath) * 1.9); }
+
+/* ---------------------------------------------------------------- round no. */
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  text-indent: 0.42em;
+}
+
+/* -------------------------------------------------------------- the phrase */
+
+.line {
+  font-size: clamp(1.85rem, 5.6vw, 3.9rem);
+  line-height: 1.28;
+  font-weight: 400;
+  max-width: 19ch;
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+}
+
+/* --------------------------------------------------------------- the vote */
+
+.vote {
+  display: flex;
+  align-items: center;
+  gap: clamp(1.6rem, 7vw, 3.4rem);
+}
+
+/* The two answers are set in the two voices. You can read the choice
+   in the letterforms before you read the words. */
+.choice {
+  background: none;
+  border: 0;
+  padding: 0.5rem 0.2rem;
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition: color 0.5s ease, opacity 0.5s ease;
+  position: relative;
+}
+
+.choice--human {
+  font-family: var(--serif);
+  font-size: clamp(1.15rem, 3.4vw, 1.7rem);
+  letter-spacing: 0.14em;
+}
+
+.choice--ai {
+  font-family: var(--mono);
+  font-size: clamp(0.95rem, 2.9vw, 1.4rem);
+  letter-spacing: 0.22em;
+}
+
+.choice::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--ink);
+  transform: scaleX(0);
+  transition: transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.choice:hover, .choice:focus-visible { color: var(--ink); outline: none; }
+.choice:hover::after, .choice:focus-visible::after { transform: scaleX(1); }
+
+/* The rule between them — the same rule as the profile mark. */
+.divider {
+  width: 1px;
+  height: 2.1em;
+  background: var(--ink-ghost);
+}
+
+/* voted state */
+.vote.done .choice { cursor: default; }
+.vote.done .choice[aria-pressed="false"] { opacity: 0.14; }
+.vote.done .choice[aria-pressed="true"]  { color: var(--ink); }
+.vote.done .choice::after { transform: scaleX(0); }
+
+/* ------------------------------------------------------------- after vote */
+
+.receipt {
+  animation: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  line-height: 2;
+  letter-spacing: 0.1em;
+  color: var(--ink-dim);
+}
+.receipt b { color: var(--ink); font-weight: 400; }
+
+/* ---------------------------------------------------------------- the seal */
+
+.seal {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  color: var(--ink-ghost);
+  text-decoration: none;
+  white-space: nowrap;
+  line-height: 1.9;
+  transition: color 0.5s ease;
+}
+.seal:hover, .seal:focus-visible { color: var(--ink-dim); outline: none; }
+
+/* ----------------------------------------------------------------- footer */
+
+footer {
+  position: relative;
+  z-index: 2;
+  padding: 1.6rem 1.5rem 2.2rem;
+  display: flex;
+  justify-content: center;
+  gap: 1.6rem;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+footer a {
+  color: var(--ink-ghost);
+  text-decoration: none;
+  transition: color 0.5s ease;
+}
+footer a:hover, footer a:focus-visible { color: var(--ink-dim); outline: none; }
+
+/* ------------------------------------------------- inner pages (proof etc.) */
+
+.page {
+  align-items: flex-start;
+  text-align: left;
+  justify-content: flex-start;
+  max-width: 46rem;
+  margin: 0 auto;
+  width: 100%;
+  gap: 2.4rem;
+  padding-top: clamp(3rem, 12vh, 7rem);
+}
+
+.page h1 {
+  font-size: clamp(1.9rem, 5vw, 2.9rem);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.page p {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 2.1;
+  letter-spacing: 0.02em;
+  color: var(--ink-dim);
+  max-width: 58ch;
+}
+.page p b { color: var(--ink); font-weight: 400; }
+
+.page section { width: 100%; }
+
+.label {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 1rem;
+  display: block;
+}
+
+pre {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  line-height: 2;
+  color: var(--ink);
+  background: rgba(244, 241, 234, 0.028);
+  padding: 1.2rem 1.3rem;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* archive + proof rows */
+.row {
+  display: flex;
+  gap: 1.2rem;
+  align-items: baseline;
+  padding: 1.15rem 0;
+  border-top: 1px solid var(--ink-ghost);
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-dim);
+}
+.row:last-child { border-bottom: 1px solid var(--ink-ghost); }
+.row .no { color: var(--ink-faint); flex: 0 0 3.2rem; }
+.row .txt { font-family: var(--serif); font-size: 1.05rem; letter-spacing: 0; color: var(--ink); flex: 1; }
+.row .verdict { flex: 0 0 auto; color: var(--ink-faint); }
+.row .verdict[data-label="HUMAN"] { font-family: var(--serif); font-size: 0.95rem; letter-spacing: 0.1em; }
+.row .verdict[data-label="AI"]    { font-family: var(--mono);  letter-spacing: 0.18em; }
+
+/* --------------------------------------------------------------- page load */
+
+.rise { opacity: 0; transform: translateY(0.7rem); animation: rise 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.rise-1 { animation-delay: 0.15s; }
+.rise-2 { animation-delay: 0.75s; }
+.rise-3 { animation-delay: 1.35s; }
+.rise-4 { animation-delay: 1.8s; }
+
+@keyframes rise { to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .rise { animation: none; opacity: 1; transform: none; }
+  * { transition-duration: 0.01ms !important; }
+}
+
+@media (max-width: 30rem) {
+  .row { flex-wrap: wrap; }
+  .row .txt { flex: 1 1 100%; order: 2; }
+  .row .verdict { order: 1; margin-left: auto; }
+}
+
+/* proof — the check row reads as one instrument, not four parts */
+.check-row { display: flex; flex-wrap: wrap; gap: .7rem; align-items: stretch; }
+.check-row input { flex: 0 0 auto; }
+.check-row input#i-salt { flex: 1 1 12rem; min-width: 0; }
+.check-row button { padding: .6rem 1.1rem; }

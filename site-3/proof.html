@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>humanor — proof</title>
+<meta name="description" content="Every answer is committed before the vote opens. Check it yourself.">
+<meta name="theme-color" content="#050505">
+<link rel="icon" href="/favicon.png">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<main class="page">
+
+  <h1>You don't have to trust us.</h1>
+
+  <p>Before a line is published, its answer is committed as a hash:
+  <b>sha256("LABEL|round-id|salt")</b>. The hash goes out with the line. The salt
+  stays secret until the reveal. Once both are public, anyone can recompute the
+  hash and see that the answer was fixed before the first vote was cast.</p>
+
+  <p>This makes it impossible for us to look at the votes and change our minds.
+  Not difficult — impossible.</p>
+
+  <section>
+    <span class="label">Verify any round</span>
+    <pre id="cmd">printf '%s|round-%s|%s' HUMAN 004 &lt;salt&gt; | sha256sum</pre>
+    <p>Or check it here, in your own browser — nothing is sent anywhere.</p>
+  </section>
+
+  <section>
+    <span class="label">Check it now</span>
+    <div class="check-row">
+      <input id="i-label" placeholder="HUMAN" aria-label="label">
+      <input id="i-round" placeholder="004" aria-label="round">
+      <input id="i-salt" placeholder="salt" aria-label="salt" >
+      <button class="choice choice--ai" id="go" style="color:var(--ink)">CHECK</button>
+    </div>
+    <pre id="out" style="margin-top:1rem">—</pre>
+  </section>
+
+  <section>
+    <span class="label">Revealed rounds</span>
+    <div id="list"></div>
+  </section>
+
+  <section>
+    <span class="label">Sources</span>
+    <p>A human line is published only if it is found <b>word for word</b> in the
+    source text. Famous quotes that exist nowhere in an author's actual work are
+    rejected, whoever the internet says wrote them. Every reveal names the work,
+    the year and the chapter, so you can check that too.</p>
+  </section>
+
+  <section>
+    <span class="label">Who runs this</span>
+    <p>No one you will ever meet. Releases are signed with the project key.
+    The protocol is the identity.</p>
+    <pre>EB94 2A07 B41D 342B F80D  27A4 1CCE 6609 83E9 DA6D</pre>
+  </section>
+
+</main>
+
+<footer>
+  <a href="/">today</a>
+  <a href="/archive.html">archive</a>
+  <a href="https://github.com/humanor-ai/humanor" rel="noopener">open</a>
+</footer>
+
+<style>
+  input {
+    background: rgba(244,241,234,.03); border: 0; border-bottom: 1px solid var(--ink-ghost);
+    color: var(--ink); font-family: var(--mono); font-size: .78rem; letter-spacing: .1em;
+    padding: .6rem .7rem;
+  }
+  input:focus { outline: none; border-bottom-color: var(--ink-dim); }
+  input::placeholder { color: var(--ink-ghost); }
+</style>
+
+<script>
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+document.getElementById('go').addEventListener('click', async () => {
+  const label = document.getElementById('i-label').value.trim().toUpperCase();
+  const no    = document.getElementById('i-round').value.trim();
+  const salt  = document.getElementById('i-salt').value.trim();
+  const out   = document.getElementById('out');
+
+  if (!label || !no || !salt) { out.textContent = 'Fill all three fields.'; return; }
+
+  const hash = await sha256(`${label}|round-${no}|${salt}`);
+  let verdict = '';
+  try {
+    const rounds = await (await fetch('/rounds.json', { cache: 'no-store' })).json();
+    const r = rounds.find(x => String(x.no).padStart(3, '0') === no.padStart(3, '0'));
+    if (r) verdict = '\n\npublished  ' + r.sha256 + '\n' + (r.sha256 === hash ? '\nMATCH — the answer was sealed before the vote.' : '\nNO MATCH.');
+  } catch {}
+  out.textContent = 'computed  ' + hash + verdict;
+});
+
+/* revealed rounds */
+(async () => {
+  try {
+    const rounds = await (await fetch('/rounds.json', { cache: 'no-store' })).json();
+    const done = rounds.filter(r => r.revealed).sort((a, b) => b.no - a.no);
+    document.getElementById('list').innerHTML = done.length ? done.map(r => `
+      <div class="row">
+        <span class="no">N°${String(r.no).padStart(3, '0')}</span>
+        <span class="txt" style="font-family:var(--mono);font-size:.68rem;color:var(--ink-dim)">${r.sha256}<br>salt ${r.salt}</span>
+        <span class="verdict" data-label="${r.label}">${r.label}</span>
+      </div>`).join('') : '<p>The first reveal is still ahead.</p>';
+  } catch {}
+})();
+</script>
+</body>
+</html>
