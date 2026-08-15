@@ -1,0 +1,16 @@
+day,label,text,author,work,year,locator,status,notes
+1,AI,"The stars don't know we named them.",,,,,DRAFT,G4 collision check before publish
+2,HUMAN,"Your children are not your children.",Khalil Gibran,The Prophet,1923,"On Children, line 1",DRAFT,G1 against source e-text; reveal may quote next line
+3,AI,"The first music you ever heard was a heartbeat.",,,,,DRAFT,G4
+4,HUMAN,"We live, as we dream — alone.",Joseph Conrad,Heart of Darkness,1899,Part I,DRAFT,G1 will fix canonical punctuation (source: 'dream--alone....')
+5,AI,"Every old person was once someone's whole world.",,,,,DRAFT,G4
+6,AI,"We teach machines to speak because we are lonely.",,,,,DRAFT,G4 — meta round
+7,HUMAN,"For every atom belonging to me as good belongs to you.",Walt Whitman,"Song of Myself, Leaves of Grass",1855,Section 1,DRAFT,G1; verbatim includes leading 'For'
+8,AI,"You are made of everyone who ever loved you.",,,,,DRAFT,G4
+9,HUMAN,"Forever – is composed of Nows –",Emily Dickinson,Poem F690,c.1863,,DRAFT,G1 + confirm public-domain first-publication volume before use; swap from reserve if unclear
+10,AI,"Every goodbye is practice for the last one.",,,,,DRAFT,G4
+11,HUMAN,"The butterfly counts not months but moments, and has time enough.",Rabindranath Tagore,Fireflies,1928,,DRAFT,G1 + procure source e-text (author's own English)
+12,AI,"Home is the place that misses you back.",,,,,DRAFT,G4 strict — proximity risk with existing sayings
+13,HUMAN,"Whatever our souls are made of, his and mine are the same.",Emily Brontë,Wuthering Heights,1847,Chapter 9,DRAFT,G1 fixes 'made of' vs 'made out of'
+14,AI,"Some of the stars you wish on are already gone.",,,,,DRAFT,G4 — closes the arc with day 1
+15,HUMAN,"For every thing that lives is Holy.",William Blake,The Marriage of Heaven and Hell,c.1790,"A Song of Liberty, Chorus",DRAFT,G1; period spelling 'every thing' kept on screen

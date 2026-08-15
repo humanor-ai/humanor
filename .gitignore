@@ -1,0 +1,8 @@
+proof/private/
+verifier/sources/*.txt
+.env
+*.key
+*.asc
+github-recovery-codes.txt
+__pycache__/
+.DS_Store

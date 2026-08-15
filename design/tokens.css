@@ -1,0 +1,15 @@
+/* humanor — the entire visual language. Nothing else is allowed. */
+:root {
+  --bg: #050505;            /* deep black, forever */
+  --ink: #F4F1EA;           /* warm paper white */
+  --ink-dim: rgba(244, 241, 234, 0.55);
+  --ink-faint: rgba(244, 241, 234, 0.25);
+  --serif: "Fraunces", "Playfair Display", Georgia, serif;  /* OFL licensed */
+  --measure: 22ch;          /* max line width of the phrase */
+  --breath: clamp(2rem, 8vh, 6rem);  /* the silence around the words */
+}
+/* Rules: no accent color. no borders. no shadows. no icons.
+   The phrase is set in --serif, weight 300-400, centered,
+   font-size clamp(1.6rem, 5vw, 3.2rem), line-height 1.35.
+   Interactive words (HUMAN / AI) are text only: --ink-dim,
+   hover/focus -> --ink. Focus outline: 1px solid --ink-faint. */
