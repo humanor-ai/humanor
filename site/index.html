@@ -131,7 +131,15 @@ function wireVote(round) {
     if (!r.revealed) countdown();
   };
 
-  if (votes[round.no]) { paint(votes[round.no], null, true); return; }
+  const prior = votes[round.no];
+  if (prior) {
+    // legacy entries were plain strings written before votes were ever sent
+    const choice = typeof prior === 'string' ? prior : prior.choice;
+    const wasSent = typeof prior === 'object' && prior.sent === true;
+    if (wasSent) { paint(choice, null, true); }
+    else { retrySend(round, choice, votes); }
+    return;
+  }
 
   box.addEventListener('click', async e => {
     const b = e.target.closest('.choice');
@@ -154,9 +162,25 @@ function wireVote(round) {
       if (res.ok) { data = await res.json(); sent = true; }
     } catch {}
 
-    if (sent) { votes[round.no] = choice; store.set('votes', votes); }
+    votes[round.no] = { choice, sent };
+    store.set('votes', votes);
     paint(choice, data, sent);
   });
+
+  async function retrySend(round, choice, votes) {
+    let data = null, sent = false;
+    try {
+      const res = await fetch(API + '/api/vote', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ no: round.no, choice, voter: voterId() })
+      });
+      if (res.ok) { data = await res.json(); sent = true; }
+    } catch {}
+    votes[round.no] = { choice, sent };
+    store.set('votes', votes);
+    paint(choice, data, sent);
+  }
 
   addEventListener('keydown', e => {
     if (box.classList.contains('done')) return;
