@@ -30,7 +30,7 @@ const store = {
 
 (async () => {
   let rounds = [];
-  try { rounds = await (await fetch('/rounds.json',{cache:'no-store'})).json(); } catch {}
+  try { rounds = await (await fetch('https://humanor-api.humanor-ai.workers.dev/api/rounds',{cache:'no-store'})).json(); } catch {}
   const done = rounds.filter(r => r.revealed).sort((a,b) => b.no - a.no);
   const list = document.getElementById('list');
   if (!done.length) { list.innerHTML = '<p>Nothing revealed yet. The first truth lands at 17:55.</p>'; return; }

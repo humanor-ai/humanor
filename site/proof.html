@@ -97,7 +97,7 @@ document.getElementById('go').addEventListener('click', async () => {
   const hash = await sha256(`${label}|round-${no}|${salt}`);
   let verdict = '';
   try {
-    const rounds = await (await fetch('/rounds.json', { cache: 'no-store' })).json();
+    const rounds = await (await fetch('https://humanor-api.humanor-ai.workers.dev/api/rounds', { cache: 'no-store' })).json();
     const r = rounds.find(x => String(x.no).padStart(3, '0') === no.padStart(3, '0'));
     if (r) verdict = '\n\npublished  ' + r.sha256 + '\n' + (r.sha256 === hash ? '\nMATCH — the answer was sealed before the vote.' : '\nNO MATCH.');
   } catch {}
@@ -107,7 +107,7 @@ document.getElementById('go').addEventListener('click', async () => {
 /* revealed rounds */
 (async () => {
   try {
-    const rounds = await (await fetch('/rounds.json', { cache: 'no-store' })).json();
+    const rounds = await (await fetch('https://humanor-api.humanor-ai.workers.dev/api/rounds', { cache: 'no-store' })).json();
     const done = rounds.filter(r => r.revealed).sort((a, b) => b.no - a.no);
     document.getElementById('list').innerHTML = done.length ? done.map(r => `
       <div class="row">

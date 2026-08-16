@@ -41,82 +41,123 @@
 
 <script>
 /* ------------------------------------------------------------------ store */
-/* Streaks live on the device. No account, no cookie, no tracking.
-   Wrapped because private-browsing modes throw on access. */
+/* A random id, generated once, kept on the device. It identifies a browser,
+   never a person: no account, no cookie, no tracking. It exists only so the
+   same browser cannot vote twice on the same round. */
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
 
-/* ------------------------------------------------------------------- data */
-/* The reveal is one moment on Earth, not one moment per timezone.
-   Anchored to Europe/Paris so a visitor in Manila and one in Lisbon
-   count down to the same instant. DST is handled by the browser. */
+const API = 'https://humanor-api.humanor-ai.workers.dev';
 const REVEAL_ZONE = 'Europe/Paris', REVEAL_HOUR = 17, REVEAL_MIN = 55;
+
+function voterId() {
+  let v = store.get('voter', null);
+  if (!v) {
+    v = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now());
+    store.set('voter', v);
+  }
+  return v;
+}
+
+/* ------------------------------------------------------------------- data */
 
 async function boot() {
   let rounds = [];
   try {
-    rounds = await (await fetch('/rounds.json', { cache: 'no-store' })).json();
+    rounds = await (await fetch(API + '/api/rounds', { cache: 'no-store' })).json();
   } catch {
-    document.getElementById('line').textContent = 'The line is on its way.';
-    return;
+    // the API is the source of truth; the file is only a fallback so the page
+    // is never blank
+    try { rounds = await (await fetch('/rounds.json', { cache: 'no-store' })).json(); } catch {}
   }
 
-  const live = rounds.filter(r => r.published).sort((a, b) => b.no - a.no);
+  const live = (rounds || []).filter(r => r.published).sort((a, b) => b.no - a.no);
   const round = live[0];
   if (!round) { document.getElementById('line').textContent = 'The first line arrives soon.'; return; }
 
   document.getElementById('eyebrow').textContent = 'N°' + String(round.no).padStart(3, '0');
   document.getElementById('line').textContent = round.text;
 
+  const short = s => s.slice(0, 16) + '…' + s.slice(-8);
   const seal = document.getElementById('seal');
-  const short = h => h.slice(0, 12) + '…' + h.slice(-6);
-  seal.textContent = round.revealed
-    ? 'salt ' + short(round.salt) + ' · verified'
-    : 'sealed ' + short(round.sha256);
+  seal.innerHTML = round.revealed
+    ? '<small>salt published · verify</small>' + short(round.salt)
+    : '<small>sealed before you vote</small>' + short(round.sha256);
 
   wireVote(round);
 }
 
 /* ------------------------------------------------------------------- vote */
+
 function wireVote(round) {
   const box = document.getElementById('vote');
   const receipt = document.getElementById('receipt');
   const votes = store.get('votes', {});
-  const already = votes[round.no];
 
-  const settle = (choice) => {
+  const paint = (choice, data, sent) => {
     box.classList.add('done');
     [...box.querySelectorAll('.choice')].forEach(b => {
       b.setAttribute('aria-pressed', String(b.dataset.vote === choice));
       b.disabled = true;
     });
 
-    if (round.revealed) {
-      const right = choice === round.label;
-      receipt.innerHTML = (right ? 'Right. ' : 'Wrong. ') +
-        'It was <b>' + round.label + '</b>' +
-        (round.source ? ' — ' + round.source : '') +
-        (round.foolRate != null ? '<br>' + round.foolRate + '% of players were fooled.' : '');
+    const r = data || round;
+    let html;
+
+    if (r.revealed) {
+      const right = choice === r.label;
+      html = (right ? 'Right. ' : 'Wrong. ') + 'It was <b>' + r.label + '</b>' +
+             (r.source ? '<br>' + r.source : '') +
+             (r.foolRate != null ? '<br>' + r.foolRate + '% of players were fooled.' : '');
+    } else if (sent) {
+      const v = r.votes || { human: 0, ai: 0 };
+      const total = v.human + v.ai;
+      html = 'Counted. The answer was sealed before you voted.';
+      if (total >= 10) {
+        const pct = Math.round((choice === 'HUMAN' ? v.human : v.ai) / total * 100);
+        html += '<br>You are with <b>' + pct + '%</b> of ' + total.toLocaleString() + ' players.';
+      }
+      html += '<br>Truth in <b id="cd">—</b>';
     } else {
-      receipt.innerHTML = 'Recorded. The answer was sealed before you voted.<br>Truth in <b id="cd">—</b>';
-      countdown();
+      // never claim a vote was counted when it was not
+      html = 'Your vote could not be sent — you are offline, or we are.' +
+             '<br>The answer is still sealed. Truth in <b id="cd">—</b>';
     }
+
+    receipt.innerHTML = html;
     receipt.hidden = false;
+    if (!r.revealed) countdown();
   };
 
-  if (already) { settle(already); return; }
+  if (votes[round.no]) { paint(votes[round.no], null, true); return; }
 
-  box.addEventListener('click', e => {
+  box.addEventListener('click', async e => {
     const b = e.target.closest('.choice');
-    if (!b) return;
-    votes[round.no] = b.dataset.vote;
-    store.set('votes', votes);
-    settle(b.dataset.vote);
+    if (!b || box.classList.contains('done')) return;
+    const choice = b.dataset.vote;
+
+    box.classList.add('done');
+    [...box.querySelectorAll('.choice')].forEach(x => {
+      x.setAttribute('aria-pressed', String(x.dataset.vote === choice));
+      x.disabled = true;
+    });
+
+    let data = null, sent = false;
+    try {
+      const res = await fetch(API + '/api/vote', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ no: round.no, choice, voter: voterId() })
+      });
+      if (res.ok) { data = await res.json(); sent = true; }
+    } catch {}
+
+    if (sent) { votes[round.no] = choice; store.set('votes', votes); }
+    paint(choice, data, sent);
   });
 
-  /* h / a — the two answers, one keystroke each */
   addEventListener('keydown', e => {
     if (box.classList.contains('done')) return;
     const k = e.key.toLowerCase();
@@ -125,34 +166,29 @@ function wireVote(round) {
 }
 
 /* --------------------------------------------------------------- countdown */
-/* The ritual, made visible: the page always knows how far the truth is. */
+/* One moment on Earth, not one per timezone. */
 function countdown() {
-  const el = () => document.getElementById('cd');
-  /* Current offset of the reveal zone, whatever the visitor's own clock says. */
   const zoneOffsetMs = (d) => {
     const asUTC = new Date(d.toLocaleString('en-US', { timeZone: 'UTC' }));
     const asZone = new Date(d.toLocaleString('en-US', { timeZone: REVEAL_ZONE }));
     return asZone - asUTC;
   };
-
   const tick = () => {
-    const node = el();
+    const node = document.getElementById('cd');
     if (!node) return;
     const now = new Date();
     const off = zoneOffsetMs(now);
-    // Build the reveal instant expressed in the reveal zone, then convert back.
     const zoneNow = new Date(now.getTime() + off);
-    const t = new Date(Date.UTC(
-      zoneNow.getUTCFullYear(), zoneNow.getUTCMonth(), zoneNow.getUTCDate(),
-      REVEAL_HOUR, REVEAL_MIN, 0
-    ) - off);
+    const t = new Date(Date.UTC(zoneNow.getUTCFullYear(), zoneNow.getUTCMonth(),
+                                zoneNow.getUTCDate(), REVEAL_HOUR, REVEAL_MIN, 0) - off);
     if (t <= now) t.setTime(t.getTime() + 86400000);
     const s = Math.floor((t - now) / 1000);
-    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
-    node.textContent = h > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m ${String(s % 60).padStart(2, '0')}s`;
+    const hh = Math.floor(s / 3600), mm = Math.floor((s % 3600) / 60);
+    node.textContent = hh > 0 ? `${hh}h ${String(mm).padStart(2, '0')}m`
+                              : `${mm}m ${String(s % 60).padStart(2, '0')}s`;
   };
   tick();
-  setInterval(tick, 1000);
+  if (!window.__cd) window.__cd = setInterval(tick, 1000);
 }
 
 boot();
